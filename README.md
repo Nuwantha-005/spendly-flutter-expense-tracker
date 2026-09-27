@@ -170,46 +170,13 @@ Firebase  (Cloud Firestore, Firebase Authentication)
 
 ---
 
-## Firebase Setup
+
 
 ### Authentication
 
 Firebase Authentication is used for user account management with Email/Password sign-in enabled.
 
-### Cloud Firestore Data Structure
 
-Expenses are stored under a user-scoped sub-collection:
-
-```
-users/
- └── {userId}/
-      └── expenses/
-           └── {expenseId}
-                ├── title       (String)
-                ├── amount      (Number)
-                ├── category    (String)
-                ├── date        (Timestamp)
-                ├── notes       (String, optional)
-                └── createdAt   (Timestamp)
-```
-
-### Firestore Security Rules
-
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId}/expenses/{expenseId} {
-      allow read, write: if request.auth != null
-                         && request.auth.uid == userId;
-    }
-  }
-}
-```
-
-Unauthenticated requests and cross-user requests are denied by default.
-
----
 
 ## Prerequisites
 
@@ -294,29 +261,18 @@ Output: `build/app/outputs/flutter-apk/app-release.apk`
 
 ## Screenshots
 
-### Login
-![Login screen](screenshots/login.png)
+<p align="center">
+  <img src="screenshots/login.png" alt="Login screen" width="180">
+  <img src="screenshots/register.png" alt="Register screen" width="180">
+  <img src="screenshots/dashboard.png" alt="Dashboard screen" width="180">
+  <img src="screenshots/expenses.png" alt="Expense history screen" width="180">
+</p>
 
-### Register
-![Register screen](screenshots/register.png)
-
-### Dashboard
-![Dashboard screen](screenshots/dashboard.png)
-
-### Expense History
-![Expense history screen](screenshots/expenses.png)
-
-### Add / Edit Expense
-![Add expense screen](screenshots/add_expense.png)
-
-### Analytics
-![Analytics screen](screenshots/analytics.png)
-
-### Settings
-![Settings screen](screenshots/settings.png)
-
----
-
+<p align="center">
+  <img src="screenshots/add_expense.png" alt="Add expense screen" width="180">
+  <img src="screenshots/analytics.png" alt="Analytics screen" width="180">
+  <img src="screenshots/settings.png" alt="Settings screen" width="180">
+</p>
 
 ## AI Tools Used
 
