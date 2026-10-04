@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../../core/constants/app_dimensions.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../../core/widgets/loading_indicator.dart';
+import '../../core/constants/app_constants.dart';
+import '../../core/constants/app_dimensions.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/widgets/loading_indicator.dart';
 
 /// Splash and auth-loading screen displayed while checking authentication state.
 class SplashScreen extends StatelessWidget {

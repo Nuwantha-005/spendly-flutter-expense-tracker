@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_constants.dart';
-import '../../../core/constants/app_dimensions.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../../core/theme/theme_provider.dart';
-import '../../../core/widgets/app_card.dart';
-import '../../../core/widgets/section_title.dart';
-import '../../../core/widgets/spendly_app_bar.dart';
-import '../../auth/data/auth_service.dart';
+import '../../core/constants/app_constants.dart';
+import '../../core/constants/app_dimensions.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/theme_provider.dart';
+import '../../core/widgets/app_card.dart';
+import '../../core/widgets/section_title.dart';
+import '../../core/widgets/spendly_app_bar.dart';
+import '../auth/auth_service.dart';
 
 /// Settings screen for Spendly including theme toggle, user profile and logout action.
 class SettingsScreen extends StatelessWidget {

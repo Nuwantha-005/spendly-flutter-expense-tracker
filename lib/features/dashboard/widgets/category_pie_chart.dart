@@ -1,7 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_text_styles.dart';
-import '../../../expenses/domain/category_spending.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../expenses/models/category_spending.dart';
 
 /// Donut chart rendering category spending distribution with interactive center callout.
 /// Adapts gracefully to light and dark themes.

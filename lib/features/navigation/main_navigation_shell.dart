@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../../app/routes.dart';
-import '../../../core/constants/app_dimensions.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../dashboard/presentation/dashboard_screen.dart';
-import '../../expenses/presentation/expenses_screen.dart';
-import '../../settings/presentation/settings_screen.dart';
+import '../../app/routes.dart';
+import '../../core/constants/app_dimensions.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../dashboard/dashboard_screen.dart';
+import '../expenses/expenses_screen.dart';
+import '../settings/settings_screen.dart';
 
 /// Main shell managing bottom navigation for the 4 core sections:
 /// 1. Dashboard

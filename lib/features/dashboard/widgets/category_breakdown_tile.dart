@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_dimensions.dart';
-import '../../../expenses/domain/category_spending.dart';
+import '../../../core/constants/app_dimensions.dart';
+import '../../expenses/models/category_spending.dart';
 
 /// Renders a category breakdown row with icon, title, percentage, amount, and progress bar.
 /// Uses Theme.of(context) colors for seamless dark mode support.

@@ -1,53 +1,42 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_dimensions.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/app_card.dart';
-import '../../../core/widgets/primary_button.dart';
-import '../../../core/widgets/spendly_app_bar.dart';
-import '../data/auth_exception_handler.dart';
-import '../data/auth_service.dart';
+import '../../core/constants/app_constants.dart';
+import '../../core/constants/app_dimensions.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/widgets/app_card.dart';
+import '../../core/widgets/primary_button.dart';
+import 'auth_exception_handler.dart';
+import 'auth_service.dart';
+import 'register_screen.dart';
 
-/// Screen allowing new users to register for Spendly.
-/// Fully theme-adaptive for dark and light modes.
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+/// Screen allowing existing users to log into Spendly with Email and Password.
+/// Seamlessly supports Light and Dark modes.
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
   final _authService = AuthService();
 
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
   String? _errorMessage;
 
   @override
   void dispose() {
-    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
   static final RegExp _emailRegExp = RegExp(
     r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
   );
-
-  String? _validateName(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Name is required';
-    }
-    return null;
-  }
 
   String? _validateEmail(String? value) {
     if (value == null || value.trim().isEmpty) {
@@ -63,23 +52,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (value == null || value.isEmpty) {
       return 'Password is required';
     }
-    if (value.length < 6) {
-      return 'Password must be at least 6 characters';
-    }
     return null;
   }
 
-  String? _validateConfirmPassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please confirm your password';
-    }
-    if (value != _passwordController.text) {
-      return 'Passwords do not match';
-    }
-    return null;
-  }
-
-  Future<void> _handleRegister() async {
+  Future<void> _handleLogin() async {
     setState(() {
       _errorMessage = null;
     });
@@ -95,16 +71,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      await _authService.registerWithEmailAndPassword(
-        name: _nameController.text,
+      await _authService.loginWithEmailAndPassword(
         email: _emailController.text,
         password: _passwordController.text,
       );
-
-      if (mounted) {
-        // Pop back so AuthGate can display MainNavigationShell
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      }
     } catch (e) {
       final friendlyMessage = AuthExceptionHandler.getErrorMessage(e);
       if (mounted) {
@@ -152,32 +122,61 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: const SpendlyAppBar(
-        title: 'Create Account',
-        automaticallyImplyLeading: true,
-      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
               horizontal: AppDimensions.spacingLg,
-              vertical: AppDimensions.spacingMd,
+              vertical: AppDimensions.spacingLg,
             ),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'Get started with Spendly',
-                    style: theme.textTheme.headlineSmall,
+                  // App Brand Header
+                  Center(
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                            blurRadius: 12,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.account_balance_wallet_rounded,
+                        color: theme.colorScheme.primary,
+                        size: AppDimensions.iconLg,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.spacingMd),
+
+                  Center(
+                    child: Text(
+                      AppConstants.appName,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: AppDimensions.spacingXs),
-                  Text(
-                    'Create an account to track your personal expenses securely.',
-                    style: theme.textTheme.bodyMedium,
+
+                  Center(
+                    child: Text(
+                      'Welcome back! Log in to continue.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
                   ),
-                  const SizedBox(height: AppDimensions.spacingLg),
+                  const SizedBox(height: AppDimensions.spacingXl),
 
                   // Error Banner (if any)
                   if (_errorMessage != null && !_isLoading) ...[
@@ -212,32 +211,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: AppDimensions.spacingLg),
                   ],
 
-                  // Name Field
-                  Text(
-                    'Full Name',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: AppDimensions.spacingXs),
-                  TextFormField(
-                    controller: _nameController,
-                    keyboardType: TextInputType.name,
-                    textCapitalization: TextCapitalization.words,
-                    textInputAction: TextInputAction.next,
-                    enabled: !_isLoading,
-                    validator: _validateName,
-                    decoration: const InputDecoration(
-                      hintText: 'John Doe',
-                      prefixIcon: Icon(
-                        Icons.person_outline_rounded,
-                        size: AppDimensions.iconSm,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppDimensions.spacingMd),
-
-                  // Email Field
+                  // Email Input Field
                   Text(
                     'Email Address',
                     style: theme.textTheme.labelMedium?.copyWith(
@@ -261,9 +235,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppDimensions.spacingMd),
+                  const SizedBox(height: AppDimensions.spacingLg),
 
-                  // Password Field
+                  // Password Input Field
                   Text(
                     'Password',
                     style: theme.textTheme.labelMedium?.copyWith(
@@ -274,11 +248,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    textInputAction: TextInputAction.next,
+                    textInputAction: TextInputAction.done,
                     enabled: !_isLoading,
                     validator: _validatePassword,
+                    onFieldSubmitted: (_) => _handleLogin(),
                     decoration: InputDecoration(
-                      hintText: 'At least 6 characters',
+                      hintText: 'Enter your password',
                       prefixIcon: const Icon(
                         Icons.lock_outline_rounded,
                         size: AppDimensions.iconSm,
@@ -299,70 +274,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppDimensions.spacingMd),
-
-                  // Confirm Password Field
-                  Text(
-                    'Confirm Password',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: AppDimensions.spacingXs),
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    obscureText: _obscureConfirmPassword,
-                    textInputAction: TextInputAction.done,
-                    enabled: !_isLoading,
-                    validator: _validateConfirmPassword,
-                    onFieldSubmitted: (_) => _handleRegister(),
-                    decoration: InputDecoration(
-                      hintText: 'Re-enter your password',
-                      prefixIcon: const Icon(
-                        Icons.lock_reset_rounded,
-                        size: AppDimensions.iconSm,
-                      ),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureConfirmPassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          size: AppDimensions.iconSm,
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureConfirmPassword = !_obscureConfirmPassword;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: AppDimensions.spacingXl),
 
-                  // Register CTA Button
+                  // Login CTA Button
                   PrimaryButton(
-                    label: 'Create Account',
+                    label: 'Log In',
                     isLoading: !_isLoading ? false : true,
-                    onPressed: _isLoading ? null : _handleRegister,
+                    onPressed: _isLoading ? null : _handleLogin,
                   ),
-                  const SizedBox(height: AppDimensions.spacingMd),
+                  const SizedBox(height: AppDimensions.spacingLg),
 
-                  // Already have account link
+                  // Register Navigation Link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Already have an account?',
+                        "Don't have an account?",
                         style: theme.textTheme.bodyMedium,
                       ),
                       TextButton(
                         onPressed: _isLoading
                             ? null
                             : () {
-                                Navigator.of(context).pop();
+                                setState(() {
+                                  _errorMessage = null;
+                                });
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const RegisterScreen(),
+                                  ),
+                                );
                               },
-                        child: const Text('Log In'),
+                        child: const Text('Sign Up'),
                       ),
                     ],
                   ),

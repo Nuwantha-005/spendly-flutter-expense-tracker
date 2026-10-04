@@ -1,4 +1,4 @@
-import '../../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/currency_formatter.dart';
 
 /// Immutable model representing aggregate spending for a single calendar month in trend views.
 class MonthlyTrendItem {

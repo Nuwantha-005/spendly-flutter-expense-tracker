@@ -1,11 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_dimensions.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../../core/widgets/primary_button.dart';
-import '../../navigation/presentation/main_navigation_shell.dart';
-import '../data/auth_service.dart';
+import '../../core/constants/app_dimensions.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/widgets/primary_button.dart';
+import '../navigation/main_navigation_shell.dart';
+import 'auth_service.dart';
 import 'login_screen.dart';
 import 'splash_screen.dart';
 

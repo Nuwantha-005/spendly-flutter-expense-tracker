@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import '../features/auth/presentation/auth_gate.dart';
-import '../features/auth/presentation/login_screen.dart';
-import '../features/auth/presentation/register_screen.dart';
-import '../features/dashboard/presentation/dashboard_screen.dart';
-import '../features/expenses/domain/expense.dart';
-import '../features/expenses/presentation/add_expense_screen.dart';
-import '../features/expenses/presentation/expenses_screen.dart';
-import '../features/navigation/presentation/main_navigation_shell.dart';
-import '../features/settings/presentation/settings_screen.dart';
+import '../features/auth/auth_gate.dart';
+import '../features/auth/login_screen.dart';
+import '../features/auth/register_screen.dart';
+import '../features/dashboard/dashboard_screen.dart';
+import '../features/expenses/models/expense.dart';
+import '../features/expenses/add_expense_screen.dart';
+import '../features/expenses/expenses_screen.dart';
+import '../features/navigation/main_navigation_shell.dart';
+import '../features/settings/settings_screen.dart';
 
 /// Centralized application routes for Spendly.
 class AppRoutes {

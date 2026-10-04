@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_dimensions.dart';
-import '../../../../core/widgets/app_card.dart';
-import '../../domain/expense_category.dart';
+import '../../../core/constants/app_dimensions.dart';
+import '../../../core/widgets/app_card.dart';
+import '../models/expense_category.dart';
 
 /// Interactive selector for choosing an expense category with dark/light mode support.
 class CategorySelector extends StatelessWidget {

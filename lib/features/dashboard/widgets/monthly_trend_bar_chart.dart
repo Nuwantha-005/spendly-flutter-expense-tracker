@@ -1,11 +1,11 @@
 import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_dimensions.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/utils/currency_formatter.dart';
-import '../../../expenses/domain/monthly_trend_item.dart';
+import '../../../core/constants/app_dimensions.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/currency_formatter.dart';
+import '../../expenses/models/monthly_trend_item.dart';
 
 /// Monthly spending trend bar chart showcasing recent 6 months spending.
 /// Automatically adapts to theme changes.

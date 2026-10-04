@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/currency_formatter.dart';
 
 /// Immutable model representing spending aggregation for a single category.
 class CategorySpending {

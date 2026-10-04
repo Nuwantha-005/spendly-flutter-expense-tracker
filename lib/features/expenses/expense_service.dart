@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../domain/expense.dart';
+import 'models/expense.dart';
 
 /// Service responsible for performing Cloud Firestore CRUD operations for user expenses.
 /// All expenses are strictly scoped to `users/{userId}/expenses/{expenseId}`.

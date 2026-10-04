@@ -71,7 +71,9 @@ A modern Flutter expense tracker application that allows users to securely manag
 
 ## Architecture
 
-Spendly uses a simple, **interview-friendly architecture** based entirely on standard Flutter mechanisms (StatefulWidget, setState, StreamBuilder, FutureBuilder, ValueNotifier) without third-party state management overhead.
+Spendly uses a simple, **beginner-friendly architecture** based entirely on standard Flutter mechanisms (StatefulWidget, setState, StreamBuilder, FutureBuilder, ValueNotifier) without third-party state management overhead.
+
+Each feature folder is kept flat and self-contained — no extra `data/`, `domain/`, or `presentation/` subfolders. This makes the codebase easy to read and navigate for beginners and intermediate developers alike.
 
 ```
 lib/
@@ -100,49 +102,42 @@ lib/
 │       └── spendly_app_bar.dart    # Custom app bar
 │
 ├── features/
-│   ├── auth/
-│   │   ├── data/
-│   │   │   ├── auth_service.dart
-│   │   │   └── auth_exception_handler.dart
-│   │   └── presentation/
-│   │       ├── auth_gate.dart
-│   │       ├── login_screen.dart
-│   │       ├── register_screen.dart
-│   │       └── splash_screen.dart
+│   ├── auth/                       # Auth feature (flat — no subfolders)
+│   │   ├── auth_service.dart       # Firebase Auth wrapper
+│   │   ├── auth_exception_handler.dart  # User-friendly error messages
+│   │   ├── auth_gate.dart          # Routes to login or home based on auth state
+│   │   ├── login_screen.dart
+│   │   ├── register_screen.dart
+│   │   └── splash_screen.dart
 │   │
-│   ├── expenses/
-│   │   ├── data/
-│   │   │   ├── expense_service.dart
-│   │   │   └── firestore_exception_handler.dart
-│   │   ├── domain/
+│   ├── expenses/                   # Expenses feature (flat)
+│   │   ├── expense_service.dart    # Firestore CRUD for expenses
+│   │   ├── firestore_exception_handler.dart
+│   │   ├── expenses_screen.dart    # Full expense list with search & filters
+│   │   ├── add_expense_screen.dart # Create / edit expense form
+│   │   ├── models/                 # Plain Dart data models
 │   │   │   ├── expense.dart
 │   │   │   ├── expense_category.dart
 │   │   │   ├── expense_filter_state.dart
 │   │   │   ├── category_spending.dart
 │   │   │   ├── monthly_expense_summary.dart
 │   │   │   └── monthly_trend_item.dart
-│   │   └── presentation/
-│   │       ├── widgets/
-│   │       │   ├── expense_list_tile.dart
-│   │       │   └── category_selector.dart
-│   │       ├── add_expense_screen.dart
-│   │       └── expenses_screen.dart
+│   │   └── widgets/
+│   │       ├── expense_list_tile.dart
+│   │       └── category_selector.dart
 │   │
-│   ├── dashboard/
-│   │   └── presentation/
-│   │       ├── widgets/
-│   │       │   ├── category_pie_chart.dart
-│   │       │   ├── monthly_trend_bar_chart.dart
-│   │       │   └── category_breakdown_tile.dart
-│   │       └── dashboard_screen.dart
+│   ├── dashboard/                  # Dashboard feature (flat)
+│   │   ├── dashboard_screen.dart
+│   │   └── widgets/
+│   │       ├── category_pie_chart.dart
+│   │       ├── monthly_trend_bar_chart.dart
+│   │       └── category_breakdown_tile.dart
 │   │
-│   ├── settings/
-│   │   └── presentation/
-│   │       └── settings_screen.dart
+│   ├── settings/                   # Settings feature (flat)
+│   │   └── settings_screen.dart
 │   │
-│   └── navigation/
-│       └── presentation/
-│           └── main_navigation_shell.dart
+│   └── navigation/                 # Bottom nav shell (flat)
+│       └── main_navigation_shell.dart
 │
 ├── firebase_options.dart
 └── main.dart
@@ -305,5 +300,5 @@ All implementation was reviewed and tested before integration.
 | **Version** | 0.1.0+1 |
 | **Platform** | Android (Flutter cross-platform) |
 | **Language** | Dart |
-| **State Management** | Riverpod |
+| **State Management** | setState / StreamBuilder / ValueNotifier |
 | **Backend** | Firebase (Authentication + Firestore) |

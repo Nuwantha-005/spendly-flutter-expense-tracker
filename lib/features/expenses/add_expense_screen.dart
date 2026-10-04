@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_dimensions.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/date_formatter.dart';
-import '../../../core/widgets/app_card.dart';
-import '../../../core/widgets/primary_button.dart';
-import '../../../core/widgets/spendly_app_bar.dart';
-import '../../auth/data/auth_service.dart';
-import '../data/expense_service.dart';
-import '../data/firestore_exception_handler.dart';
-import '../domain/expense.dart';
+import '../../core/constants/app_dimensions.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/utils/date_formatter.dart';
+import '../../core/widgets/app_card.dart';
+import '../../core/widgets/primary_button.dart';
+import '../../core/widgets/spendly_app_bar.dart';
+import '../auth/auth_service.dart';
+import 'expense_service.dart';
+import 'firestore_exception_handler.dart';
+import 'models/expense.dart';
 import 'widgets/category_selector.dart';
 
 /// Screen for creating or editing an expense record with full dark/light theme support.

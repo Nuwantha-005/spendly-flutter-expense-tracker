@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_dimensions.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/utils/currency_formatter.dart';
-import '../../../../core/utils/date_formatter.dart';
-import '../../../../core/widgets/app_card.dart';
-import '../../domain/expense.dart';
-import '../../domain/expense_category.dart';
+import '../../../core/constants/app_dimensions.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/date_formatter.dart';
+import '../../../core/widgets/app_card.dart';
+import '../models/expense.dart';
+import '../models/expense_category.dart';
 
 /// Clean card displaying an individual expense in lists with theme awareness.
 class ExpenseListTile extends StatelessWidget {
