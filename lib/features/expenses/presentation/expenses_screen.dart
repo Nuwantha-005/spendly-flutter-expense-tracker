@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -7,32 +6,32 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/spendly_app_bar.dart';
+import '../../auth/data/auth_service.dart';
+import '../data/expense_service.dart';
+import '../data/firestore_exception_handler.dart';
 import '../domain/expense.dart';
 import '../domain/expense_category.dart';
 import '../domain/expense_filter_state.dart';
 import 'add_expense_screen.dart';
-import 'providers/expense_providers.dart';
 import 'widgets/expense_list_tile.dart';
 
 /// Screen listing all authenticated user's expenses with real-time updates,
 /// multi-criteria search (title, category, note), and combined category/date filters.
 /// Fully theme-adaptive for dark and light modes.
-class ExpensesScreen extends ConsumerStatefulWidget {
+class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
 
   @override
-  ConsumerState<ExpensesScreen> createState() => _ExpensesScreenState();
+  State<ExpensesScreen> createState() => _ExpensesScreenState();
 }
 
-class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
-  late final TextEditingController _searchController;
+class _ExpensesScreenState extends State<ExpensesScreen> {
+  final _searchController = TextEditingController();
+  final _expenseService = ExpenseService();
+  final _authService = AuthService();
 
-  @override
-  void initState() {
-    super.initState();
-    final currentQuery = ref.read(expenseFilterProvider).searchQuery;
-    _searchController = TextEditingController(text: currentQuery);
-  }
+  ExpenseFilterState _filterState = const ExpenseFilterState();
+  Key _streamKey = UniqueKey();
 
   @override
   void dispose() {
@@ -40,12 +39,16 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     super.dispose();
   }
 
+  void _retry() {
+    setState(() {
+      _streamKey = UniqueKey();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final expensesAsync = ref.watch(expensesStreamProvider);
-    final filteredExpensesAsync = ref.watch(filteredExpensesProvider);
-    final filterState = ref.watch(expenseFilterProvider);
+    final userId = _authService.currentUser?.uid ?? '';
 
     return Scaffold(
       appBar: SpendlyAppBar(
@@ -60,138 +63,154 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
         ],
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // 1. Search Bar & Filter Controls Header
-            Container(
-              color: theme.scaffoldBackgroundColor,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimensions.spacingMd,
-                vertical: AppDimensions.spacingSm,
-              ),
-              child: Column(
-                children: [
-                  _buildSearchBar(context, filterState),
-                  const SizedBox(height: AppDimensions.spacingSm),
-                  _buildFilterButtons(context, filterState),
-                  if (filterState.hasActiveFilters) ...[
-                    const SizedBox(height: AppDimensions.spacingSm),
-                    _buildActiveFilterChips(
-                      context,
-                      filterState,
-                      filteredExpensesAsync.value?.length ?? 0,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const Divider(height: 1),
+        child: StreamBuilder<List<Expense>>(
+          key: _streamKey,
+          stream: userId.isNotEmpty
+              ? _expenseService.watchExpenses(userId)
+              : Stream.value(<Expense>[]),
+          builder: (context, snapshot) {
+            final allExpenses = snapshot.data ?? [];
+            final filtered = _filterState.apply(allExpenses);
 
-            // 2. Main Expenses Content Area
-            Expanded(
-              child: expensesAsync.when(
-                loading: () => const Center(
-                  child: LoadingIndicator(message: 'Loading expenses...'),
-                ),
-                error: (error, _) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppDimensions.spacingXl),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.cloud_off_rounded,
-                          color: AppColors.error,
-                          size: AppDimensions.iconXl,
-                        ),
-                        const SizedBox(height: AppDimensions.spacingMd),
-                        Text(
-                          'Unable to load your expenses.',
-                          style: theme.textTheme.headlineSmall,
-                        ),
+            return Column(
+              children: [
+                // 1. Search Bar & Filter Controls Header
+                Container(
+                  color: theme.scaffoldBackgroundColor,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimensions.spacingMd,
+                    vertical: AppDimensions.spacingSm,
+                  ),
+                  child: Column(
+                    children: [
+                      _buildSearchBar(context),
+                      const SizedBox(height: AppDimensions.spacingSm),
+                      _buildFilterButtons(context),
+                      if (_filterState.hasActiveFilters) ...[
                         const SizedBox(height: AppDimensions.spacingSm),
-                        Text(
-                          'Please check your network connection and try again.',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: AppDimensions.spacingLg),
-                        PrimaryButton(
-                          label: 'Retry',
-                          isFullWidth: false,
-                          onPressed: () =>
-                              ref.invalidate(expensesStreamProvider),
+                        _buildActiveFilterChips(
+                          context,
+                          filtered.length,
                         ),
                       ],
-                    ),
+                    ],
                   ),
                 ),
-                data: (allExpenses) {
-                  // If user has zero expenses overall in their account
-                  if (allExpenses.isEmpty) {
-                    return EmptyState(
-                      icon: Icons.account_balance_wallet_outlined,
-                      title: 'No expenses yet',
-                      message:
-                          'Start tracking your spending by adding your first expense.',
-                      actionText: 'Add Expense',
-                      onAction: () => _openAddExpense(context),
-                    );
-                  }
+                const Divider(height: 1),
 
-                  // If user has expenses, evaluate filtered results
-                  final filtered = filteredExpensesAsync.value ?? [];
+                // 2. Main Expenses Content Area
+                Expanded(
+                  child: Builder(
+                    builder: (context) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child:
+                              LoadingIndicator(message: 'Loading expenses...'),
+                        );
+                      }
 
-                  // If filters produced zero matching results
-                  if (filtered.isEmpty) {
-                    return EmptyState(
-                      icon: Icons.search_off_rounded,
-                      title: 'No matching expenses',
-                      message: 'Try changing your search or filters.',
-                      actionText: 'Clear Filters',
-                      onAction: () {
-                        _searchController.clear();
-                        ref
-                            .read(expenseFilterProvider.notifier)
-                            .clearAllFilters();
-                      },
-                    );
-                  }
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.all(AppDimensions.spacingXl),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.cloud_off_rounded,
+                                  color: AppColors.error,
+                                  size: AppDimensions.iconXl,
+                                ),
+                                const SizedBox(height: AppDimensions.spacingMd),
+                                Text(
+                                  'Unable to load your expenses.',
+                                  style: theme.textTheme.headlineSmall,
+                                ),
+                                const SizedBox(height: AppDimensions.spacingSm),
+                                Text(
+                                  'Please check your network connection and try again.',
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                                const SizedBox(height: AppDimensions.spacingLg),
+                                PrimaryButton(
+                                  label: 'Retry',
+                                  isFullWidth: false,
+                                  onPressed: _retry,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
 
-                  return ListView.separated(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppDimensions.spacingMd,
-                      vertical: AppDimensions.spacingSm,
-                    ),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppDimensions.spacingSm),
-                    itemBuilder: (context, index) {
-                      final expense = filtered[index];
-                      return ExpenseListTile(
-                        expense: expense,
-                        onTap: () => _openEditExpense(context, expense),
-                        onDelete: () => _confirmDelete(context, expense),
+                      // If user has zero expenses overall in their account
+                      if (allExpenses.isEmpty) {
+                        return EmptyState(
+                          icon: Icons.account_balance_wallet_outlined,
+                          title: 'No expenses yet',
+                          message:
+                              'Start tracking your spending by adding your first expense.',
+                          actionText: 'Add Expense',
+                          onAction: () => _openAddExpense(context),
+                        );
+                      }
+
+                      // If filters produced zero matching results
+                      if (filtered.isEmpty) {
+                        return EmptyState(
+                          icon: Icons.search_off_rounded,
+                          title: 'No matching expenses',
+                          message: 'Try changing your search or filters.',
+                          actionText: 'Clear Filters',
+                          onAction: () {
+                            _searchController.clear();
+                            setState(() {
+                              _filterState = const ExpenseFilterState();
+                            });
+                          },
+                        );
+                      }
+
+                      return ListView.separated(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppDimensions.spacingMd,
+                          vertical: AppDimensions.spacingSm,
+                        ),
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(height: AppDimensions.spacingSm),
+                        itemBuilder: (context, index) {
+                          final expense = filtered[index];
+                          return ExpenseListTile(
+                            expense: expense,
+                            onTap: () => _openEditExpense(context, expense),
+                            onDelete: () => _confirmDelete(context, expense),
+                          );
+                        },
                       );
                     },
-                  );
-                },
-              ),
-            ),
-          ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
   /// Builds the text search field with theme adaptation.
-  Widget _buildSearchBar(BuildContext context, ExpenseFilterState filterState) {
+  Widget _buildSearchBar(BuildContext context) {
     final theme = Theme.of(context);
 
     return TextField(
       controller: _searchController,
       onChanged: (value) {
-        ref.read(expenseFilterProvider.notifier).setSearchQuery(value);
+        setState(() {
+          _filterState = _filterState.copyWith(searchQuery: value);
+        });
       },
       style: theme.textTheme.bodyMedium?.copyWith(
         color: theme.colorScheme.onSurface,
@@ -203,7 +222,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           size: AppDimensions.iconSm,
         ),
-        suffixIcon: filterState.isSearchActive
+        suffixIcon: _filterState.isSearchActive
             ? IconButton(
                 icon: Icon(
                   Icons.close_rounded,
@@ -212,7 +231,9 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                 ),
                 onPressed: () {
                   _searchController.clear();
-                  ref.read(expenseFilterProvider.notifier).clearSearch();
+                  setState(() {
+                    _filterState = _filterState.copyWith(searchQuery: '');
+                  });
                 },
                 tooltip: 'Clear search',
               )
@@ -237,13 +258,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   }
 
   /// Builds the Category and Date filter selector buttons.
-  Widget _buildFilterButtons(
-    BuildContext context,
-    ExpenseFilterState filterState,
-  ) {
+  Widget _buildFilterButtons(BuildContext context) {
     final theme = Theme.of(context);
-    final isCatActive = filterState.isCategoryActive;
-    final isDateActive = filterState.isDateActive;
+    final isCatActive = _filterState.isCategoryActive;
+    final isDateActive = _filterState.isDateActive;
 
     return Row(
       children: [
@@ -285,7 +303,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                       const SizedBox(width: AppDimensions.spacingXs),
                       Expanded(
                         child: Text(
-                          isCatActive ? filterState.category : 'Category',
+                          isCatActive ? _filterState.category : 'Category',
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: isCatActive
                                 ? theme.colorScheme.primary
@@ -350,7 +368,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                       const SizedBox(width: AppDimensions.spacingXs),
                       Expanded(
                         child: Text(
-                          isDateActive ? filterState.dateFilterLabel : 'Date',
+                          isDateActive ? _filterState.dateFilterLabel : 'Date',
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: isDateActive
                                 ? theme.colorScheme.primary
@@ -382,7 +400,6 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   /// Builds row showing active filter chips and clear all button.
   Widget _buildActiveFilterChips(
     BuildContext context,
-    ExpenseFilterState filterState,
     int matchCount,
   ) {
     final theme = Theme.of(context);
@@ -402,7 +419,9 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
             InkWell(
               onTap: () {
                 _searchController.clear();
-                ref.read(expenseFilterProvider.notifier).clearAllFilters();
+                setState(() {
+                  _filterState = const ExpenseFilterState();
+                });
               },
               borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
               child: Padding(
@@ -426,11 +445,13 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              if (filterState.isCategoryActive) ...[
+              if (_filterState.isCategoryActive) ...[
                 InputChip(
-                  label: Text(filterState.category),
+                  label: Text(_filterState.category),
                   onDeleted: () {
-                    ref.read(expenseFilterProvider.notifier).clearCategory();
+                    setState(() {
+                      _filterState = _filterState.copyWith(category: 'All');
+                    });
                   },
                   deleteIconColor: theme.colorScheme.primary,
                   backgroundColor: theme.colorScheme.primaryContainer,
@@ -446,11 +467,16 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                 ),
                 const SizedBox(width: AppDimensions.spacingXs),
               ],
-              if (filterState.isDateActive) ...[
+              if (_filterState.isDateActive) ...[
                 InputChip(
-                  label: Text(filterState.dateFilterLabel),
+                  label: Text(_filterState.dateFilterLabel),
                   onDeleted: () {
-                    ref.read(expenseFilterProvider.notifier).clearDateFilter();
+                    setState(() {
+                      _filterState = _filterState.copyWith(
+                        dateFilter: DateFilterOption.all,
+                        clearCustomDate: true,
+                      );
+                    });
                   },
                   deleteIconColor: theme.colorScheme.primary,
                   backgroundColor: theme.colorScheme.primaryContainer,
@@ -466,12 +492,14 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                 ),
                 const SizedBox(width: AppDimensions.spacingXs),
               ],
-              if (filterState.isSearchActive) ...[
+              if (_filterState.isSearchActive) ...[
                 InputChip(
-                  label: Text('"${filterState.searchQuery}"'),
+                  label: Text('"${_filterState.searchQuery}"'),
                   onDeleted: () {
                     _searchController.clear();
-                    ref.read(expenseFilterProvider.notifier).clearSearch();
+                    setState(() {
+                      _filterState = _filterState.copyWith(searchQuery: '');
+                    });
                   },
                   deleteIconColor: theme.colorScheme.primary,
                   backgroundColor: theme.colorScheme.primaryContainer,
@@ -495,7 +523,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
   /// Displays category selection modal bottom sheet.
   void _showCategoryFilterSheet(BuildContext context) {
-    final currentCategory = ref.read(expenseFilterProvider).category;
+    final currentCategory = _filterState.category;
     final theme = Theme.of(context);
 
     showModalBottomSheet<void>(
@@ -555,9 +583,9 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                           : null,
                       selected: currentCategory == 'All',
                       onTap: () {
-                        ref
-                            .read(expenseFilterProvider.notifier)
-                            .setCategory('All');
+                        setState(() {
+                          _filterState = _filterState.copyWith(category: 'All');
+                        });
                         Navigator.of(sheetContext).pop();
                       },
                     ),
@@ -585,9 +613,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                         selected: currentCategory.toLowerCase() ==
                             cat.name.toLowerCase(),
                         onTap: () {
-                          ref
-                              .read(expenseFilterProvider.notifier)
-                              .setCategory(cat.name);
+                          setState(() {
+                            _filterState =
+                                _filterState.copyWith(category: cat.name);
+                          });
                           Navigator.of(sheetContext).pop();
                         },
                       ),
@@ -603,7 +632,6 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
   /// Displays date range selection modal bottom sheet.
   void _showDateFilterSheet(BuildContext context) {
-    final filterState = ref.read(expenseFilterProvider);
     final theme = Theme.of(context);
 
     showModalBottomSheet<void>(
@@ -657,24 +685,27 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                   ),
                   title: Text(
                     option == DateFilterOption.custom &&
-                            filterState.dateFilter == DateFilterOption.custom &&
-                            filterState.customDate != null
-                        ? 'Custom: ${filterState.dateFilterLabel}'
+                            _filterState.dateFilter == DateFilterOption.custom &&
+                            _filterState.customDate != null
+                        ? 'Custom: ${_filterState.dateFilterLabel}'
                         : option.label,
                   ),
-                  trailing: filterState.dateFilter == option
+                  trailing: _filterState.dateFilter == option
                       ? Icon(Icons.check_circle_rounded,
                           color: theme.colorScheme.primary)
                       : null,
-                  selected: filterState.dateFilter == option,
+                  selected: _filterState.dateFilter == option,
                   onTap: () async {
                     Navigator.of(sheetContext).pop();
                     if (option == DateFilterOption.custom) {
                       await _selectCustomDate(context);
                     } else {
-                      ref
-                          .read(expenseFilterProvider.notifier)
-                          .setDateFilter(option);
+                      setState(() {
+                        _filterState = _filterState.copyWith(
+                          dateFilter: option,
+                          clearCustomDate: true,
+                        );
+                      });
                     }
                   },
                 ),
@@ -687,8 +718,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
   /// Opens date picker for custom date filter selection.
   Future<void> _selectCustomDate(BuildContext context) async {
-    final current =
-        ref.read(expenseFilterProvider).customDate ?? DateTime.now();
+    final current = _filterState.customDate ?? DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: current,
@@ -697,10 +727,12 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       helpText: 'Select Expense Date',
     );
     if (picked != null) {
-      ref.read(expenseFilterProvider.notifier).setDateFilter(
-            DateFilterOption.custom,
-            picked,
-          );
+      setState(() {
+        _filterState = _filterState.copyWith(
+          dateFilter: DateFilterOption.custom,
+          customDate: picked,
+        );
+      });
     }
   }
 
@@ -740,17 +772,34 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
               ),
               onPressed: () async {
                 Navigator.of(dialogContext).pop();
-                final success = await ref
-                    .read(expenseControllerProvider.notifier)
-                    .deleteExpense(expense.id);
-
-                if (success && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Expense deleted successfully.'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                final userId = _authService.currentUser?.uid;
+                if (userId != null) {
+                  try {
+                    await _expenseService.deleteExpense(
+                      userId: userId,
+                      expenseId: expense.id,
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Expense deleted successfully.'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      final message =
+                          FirestoreExceptionHandler.getErrorMessage(e);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(message),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
                 }
               },
               child: const Text('Delete'),

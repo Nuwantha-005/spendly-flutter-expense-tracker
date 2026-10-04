@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String _kThemePreferenceKey = 'spendy_theme_mode';
 
-/// State notifier managing ThemeMode with SharedPreferences persistence.
-class ThemeModeNotifier extends StateNotifier<ThemeMode> {
+/// State notifier managing ThemeMode with SharedPreferences persistence using ValueNotifier.
+class ThemeModeNotifier extends ValueNotifier<ThemeMode> {
   ThemeModeNotifier() : super(ThemeMode.system) {
     _loadPreference();
   }
+
+  /// Compatibility getter for the current state.
+  ThemeMode get state => value;
 
   Future<void> _loadPreference() async {
     try {
@@ -17,25 +19,25 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
       if (savedMode != null) {
         switch (savedMode) {
           case 'light':
-            state = ThemeMode.light;
+            value = ThemeMode.light;
             break;
           case 'dark':
-            state = ThemeMode.dark;
+            value = ThemeMode.dark;
             break;
           case 'system':
           default:
-            state = ThemeMode.system;
+            value = ThemeMode.system;
             break;
         }
       }
     } catch (_) {
       // Default safely to system mode if storage fails
-      state = ThemeMode.system;
+      value = ThemeMode.system;
     }
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
-    state = mode;
+    value = mode;
     try {
       final prefs = await SharedPreferences.getInstance();
       String modeStr;
@@ -57,7 +59,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   }
 
   void toggleTheme() {
-    if (state == ThemeMode.dark) {
+    if (value == ThemeMode.dark) {
       setThemeMode(ThemeMode.light);
     } else {
       setThemeMode(ThemeMode.dark);
@@ -65,8 +67,5 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   }
 }
 
-/// Provider for current theme mode.
-final themeModeProvider =
-    StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
-  return ThemeModeNotifier();
-});
+/// Global instance of ThemeModeNotifier accessible throughout the application.
+final themeNotifier = ThemeModeNotifier();

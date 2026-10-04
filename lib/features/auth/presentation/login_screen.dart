@@ -1,27 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/primary_button.dart';
-import 'providers/auth_providers.dart';
+import '../data/auth_exception_handler.dart';
+import '../data/auth_service.dart';
 import 'register_screen.dart';
 
 /// Screen allowing existing users to log into Spendly with Email and Password.
 /// Seamlessly supports Light and Dark modes.
-class LoginScreen extends ConsumerStatefulWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
+
   bool _obscurePassword = true;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -52,32 +56,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    // Clear any previous error
-    ref.read(authControllerProvider.notifier).clearError();
+    setState(() {
+      _errorMessage = null;
+    });
 
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    // Dismiss keyboard
     FocusScope.of(context).unfocus();
 
-    await ref.read(authControllerProvider.notifier).login(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
-  }
+    setState(() {
+      _isLoading = true;
+    });
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final authState = ref.watch(authControllerProvider);
-    final isLoading = authState.isLoading;
-
-    // Listen for errors to show a snackbar or error banner
-    ref.listen<AsyncValue<void>>(authControllerProvider, (_, next) {
-      if (next.hasError && !next.isLoading) {
-        final errorMsg = next.error.toString();
+    try {
+      await _authService.loginWithEmailAndPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+    } catch (e) {
+      final friendlyMessage = AuthExceptionHandler.getErrorMessage(e);
+      if (mounted) {
+        setState(() {
+          _errorMessage = friendlyMessage;
+        });
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -91,7 +94,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(width: AppDimensions.spacingSm),
                 Expanded(
                   child: Text(
-                    errorMsg,
+                    friendlyMessage,
                     style: const TextStyle(color: AppColors.onError),
                   ),
                 ),
@@ -105,7 +108,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         );
       }
-    });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
     return Scaffold(
       body: SafeArea(
@@ -165,7 +179,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: AppDimensions.spacingXl),
 
                   // Error Banner (if any)
-                  if (authState.hasError && !isLoading) ...[
+                  if (_errorMessage != null && !_isLoading) ...[
                     AppCard(
                       backgroundColor: theme.brightness == Brightness.dark
                           ? AppColors.errorContainerDark
@@ -182,7 +196,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           const SizedBox(width: AppDimensions.spacingSm),
                           Expanded(
                             child: Text(
-                              authState.error.toString(),
+                              _errorMessage!,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.brightness == Brightness.dark
                                     ? AppColors.onErrorContainerDark
@@ -211,7 +225,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     textInputAction: TextInputAction.next,
                     autocorrect: false,
                     enableSuggestions: false,
-                    enabled: !isLoading,
+                    enabled: !_isLoading,
                     validator: _validateEmail,
                     decoration: const InputDecoration(
                       hintText: 'you@example.com',
@@ -235,7 +249,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
-                    enabled: !isLoading,
+                    enabled: !_isLoading,
                     validator: _validatePassword,
                     onFieldSubmitted: (_) => _handleLogin(),
                     decoration: InputDecoration(
@@ -265,8 +279,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // Login CTA Button
                   PrimaryButton(
                     label: 'Log In',
-                    isLoading: isLoading,
-                    onPressed: isLoading ? null : _handleLogin,
+                    isLoading: !_isLoading ? false : true,
+                    onPressed: _isLoading ? null : _handleLogin,
                   ),
                   const SizedBox(height: AppDimensions.spacingLg),
 
@@ -279,12 +293,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         style: theme.textTheme.bodyMedium,
                       ),
                       TextButton(
-                        onPressed: isLoading
+                        onPressed: _isLoading
                             ? null
                             : () {
-                                ref
-                                    .read(authControllerProvider.notifier)
-                                    .clearError();
+                                setState(() {
+                                  _errorMessage = null;
+                                });
                                 Navigator.of(context).push(
                                   MaterialPageRoute<void>(
                                     builder: (_) => const RegisterScreen(),

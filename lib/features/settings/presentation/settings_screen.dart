@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_dimensions.dart';
@@ -9,17 +8,15 @@ import '../../../core/theme/theme_provider.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/section_title.dart';
 import '../../../core/widgets/spendly_app_bar.dart';
-import '../../auth/presentation/providers/auth_providers.dart';
-import '../../navigation/presentation/main_navigation_shell.dart';
+import '../../auth/data/auth_service.dart';
 
 /// Settings screen for Spendly including theme toggle, user profile and logout action.
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider);
-    final themeMode = ref.watch(themeModeProvider);
+  Widget build(BuildContext context) {
+    final user = AuthService().currentUser;
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -116,68 +113,73 @@ class SettingsScreen extends ConsumerWidget {
             const SectionTitle(title: 'Appearance'),
             AppCard(
               padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(AppDimensions.spacingSm),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        themeMode == ThemeMode.dark
-                            ? Icons.dark_mode_rounded
-                            : themeMode == ThemeMode.light
-                                ? Icons.light_mode_rounded
-                                : Icons.brightness_auto_rounded,
-                        size: AppDimensions.iconSm,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                    title: Text('Theme Mode', style: theme.textTheme.titleMedium),
-                    subtitle: Text(
-                      themeMode == ThemeMode.dark
-                          ? 'Dark Mode'
-                          : themeMode == ThemeMode.light
-                              ? 'Light Mode'
-                              : 'System Default',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                    trailing: DropdownButtonHideUnderline(
-                      child: DropdownButton<ThemeMode>(
-                        value: themeMode,
-                        dropdownColor: theme.cardColor,
-                        icon: const Icon(Icons.arrow_drop_down_rounded),
-                        onChanged: (mode) {
-                          if (mode != null) {
-                            ref
-                                .read(themeModeProvider.notifier)
-                                .setThemeMode(mode);
-                          }
-                        },
-                        items: const [
-                          DropdownMenuItem(
-                            value: ThemeMode.system,
-                            child: Text('System'),
+              child: ValueListenableBuilder<ThemeMode>(
+                valueListenable: themeNotifier,
+                builder: (context, themeMode, _) {
+                  return Column(
+                    children: [
+                      ListTile(
+                        leading: Container(
+                          padding:
+                              const EdgeInsets.all(AppDimensions.spacingSm),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer,
+                            shape: BoxShape.circle,
                           ),
-                          DropdownMenuItem(
-                            value: ThemeMode.light,
-                            child: Text('Light'),
+                          child: Icon(
+                            themeMode == ThemeMode.dark
+                                ? Icons.dark_mode_rounded
+                                : themeMode == ThemeMode.light
+                                    ? Icons.light_mode_rounded
+                                    : Icons.brightness_auto_rounded,
+                            size: AppDimensions.iconSm,
+                            color: theme.colorScheme.primary,
                           ),
-                          DropdownMenuItem(
-                            value: ThemeMode.dark,
-                            child: Text('Dark'),
+                        ),
+                        title: Text('Theme Mode',
+                            style: theme.textTheme.titleMedium),
+                        subtitle: Text(
+                          themeMode == ThemeMode.dark
+                              ? 'Dark Mode'
+                              : themeMode == ThemeMode.light
+                                  ? 'Light Mode'
+                                  : 'System Default',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        trailing: DropdownButtonHideUnderline(
+                          child: DropdownButton<ThemeMode>(
+                            value: themeMode,
+                            dropdownColor: theme.cardColor,
+                            icon: const Icon(Icons.arrow_drop_down_rounded),
+                            onChanged: (mode) {
+                              if (mode != null) {
+                                themeNotifier.setThemeMode(mode);
+                              }
+                            },
+                            items: const [
+                              DropdownMenuItem(
+                                value: ThemeMode.system,
+                                child: Text('System'),
+                              ),
+                              DropdownMenuItem(
+                                value: ThemeMode.light,
+                                child: Text('Light'),
+                              ),
+                              DropdownMenuItem(
+                                value: ThemeMode.dark,
+                                child: Text('Dark'),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: AppDimensions.spacingMd,
+                          vertical: AppDimensions.spacingXs,
+                        ),
                       ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppDimensions.spacingMd,
-                      vertical: AppDimensions.spacingXs,
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
             const SizedBox(height: AppDimensions.spacingLg),
@@ -318,7 +320,7 @@ class SettingsScreen extends ConsumerWidget {
                   horizontal: AppDimensions.spacingMd,
                   vertical: AppDimensions.spacingXs,
                 ),
-                onTap: () => _confirmLogout(context, ref),
+                onTap: () => _confirmLogout(context),
               ),
             ),
             const SizedBox(height: AppDimensions.spacingLg),
@@ -352,7 +354,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _confirmLogout(BuildContext context, WidgetRef ref) {
+  void _confirmLogout(BuildContext context) {
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -368,8 +370,7 @@ class SettingsScreen extends ConsumerWidget {
               style: TextButton.styleFrom(foregroundColor: AppColors.error),
               onPressed: () async {
                 Navigator.of(dialogContext).pop();
-                ref.read(navigationIndexProvider.notifier).state = 0;
-                await ref.read(authControllerProvider.notifier).logout();
+                await AuthService().logout();
               },
               child: const Text('Log Out'),
             ),
@@ -395,7 +396,8 @@ class SettingsScreen extends ConsumerWidget {
           color: theme.colorScheme.surfaceContainerHighest,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: AppDimensions.iconSm, color: theme.colorScheme.primary),
+        child: Icon(icon,
+            size: AppDimensions.iconSm, color: theme.colorScheme.primary),
       ),
       title: Text(title, style: theme.textTheme.titleMedium),
       subtitle: Text(subtitle, style: theme.textTheme.bodySmall),

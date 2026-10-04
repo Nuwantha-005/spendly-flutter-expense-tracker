@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/spendly_app_bar.dart';
+import '../../auth/data/auth_service.dart';
+import '../data/expense_service.dart';
+import '../data/firestore_exception_handler.dart';
 import '../domain/expense.dart';
-import 'providers/expense_providers.dart';
 import 'widgets/category_selector.dart';
 
 /// Screen for creating or editing an expense record with full dark/light theme support.
-class AddExpenseScreen extends ConsumerStatefulWidget {
+class AddExpenseScreen extends StatefulWidget {
   const AddExpenseScreen({
     super.key,
     this.expense,
@@ -21,11 +22,13 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
   final Expense? expense;
 
   @override
-  ConsumerState<AddExpenseScreen> createState() => _AddExpenseScreenState();
+  State<AddExpenseScreen> createState() => _AddExpenseScreenState();
 }
 
-class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
+class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _expenseService = ExpenseService();
+  final _authService = AuthService();
 
   late final TextEditingController _titleController;
   late final TextEditingController _amountController;
@@ -33,6 +36,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   late String _selectedCategory;
   late DateTime _selectedDate;
+
+  bool _isLoading = false;
+  String? _errorMessage;
 
   bool get _isEditing => widget.expense != null;
 
@@ -91,70 +97,81 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Future<void> _handleSubmit() async {
-    ref.read(expenseControllerProvider.notifier).clearError();
+    setState(() {
+      _errorMessage = null;
+    });
 
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
+    final user = _authService.currentUser;
+    if (user == null) {
+      setState(() {
+        _errorMessage = 'User is not authenticated.';
+      });
+      return;
+    }
+
     FocusScope.of(context).unfocus();
 
-    final parsedAmount = double.parse(_amountController.text.trim());
-    final title = _titleController.text.trim();
-    final note = _noteController.text.trim();
+    setState(() {
+      _isLoading = true;
+    });
 
-    bool success;
-    if (_isEditing) {
-      final updated = widget.expense!.copyWith(
-        title: title,
-        amount: parsedAmount,
-        category: _selectedCategory,
-        date: _selectedDate,
-        note: note.isNotEmpty ? note : null,
-      );
-      success = await ref
-          .read(expenseControllerProvider.notifier)
-          .updateExpense(updated);
-    } else {
-      final newExpense = Expense(
-        id: '',
-        title: title,
-        amount: parsedAmount,
-        category: _selectedCategory,
-        date: _selectedDate,
-        note: note.isNotEmpty ? note : null,
-        createdAt: DateTime.now(),
-      );
-      success = await ref
-          .read(expenseControllerProvider.notifier)
-          .addExpense(newExpense);
-    }
+    try {
+      final parsedAmount = double.parse(_amountController.text.trim());
+      final title = _titleController.text.trim();
+      final note = _noteController.text.trim();
 
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _isEditing
-                ? 'Expense updated successfully.'
-                : 'Expense added successfully.',
+      if (_isEditing) {
+        final updated = widget.expense!.copyWith(
+          title: title,
+          amount: parsedAmount,
+          category: _selectedCategory,
+          date: _selectedDate,
+          note: note.isNotEmpty ? note : null,
+        );
+        await _expenseService.updateExpense(
+          userId: user.uid,
+          expense: updated,
+        );
+      } else {
+        final newExpense = Expense(
+          id: '',
+          title: title,
+          amount: parsedAmount,
+          category: _selectedCategory,
+          date: _selectedDate,
+          note: note.isNotEmpty ? note : null,
+          createdAt: DateTime.now(),
+        );
+        await _expenseService.addExpense(
+          userId: user.uid,
+          expense: newExpense,
+        );
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _isEditing
+                  ? 'Expense updated successfully.'
+                  : 'Expense added successfully.',
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
           ),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      Navigator.of(context).pop();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final expenseState = ref.watch(expenseControllerProvider);
-    final isLoading = expenseState.isLoading;
-
-    ref.listen<AsyncValue<void>>(expenseControllerProvider, (_, next) {
-      if (next.hasError && !next.isLoading) {
-        final errorMsg = next.error.toString();
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      final friendlyMessage = FirestoreExceptionHandler.getErrorMessage(e);
+      if (mounted) {
+        setState(() {
+          _errorMessage = friendlyMessage;
+        });
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -168,7 +185,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 const SizedBox(width: AppDimensions.spacingSm),
                 Expanded(
                   child: Text(
-                    errorMsg,
+                    friendlyMessage,
                     style: const TextStyle(color: AppColors.onError),
                   ),
                 ),
@@ -179,7 +196,18 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           ),
         );
       }
-    });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: SpendlyAppBar(
@@ -198,7 +226,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Error Banner (if any)
-                if (expenseState.hasError && !isLoading) ...[
+                if (_errorMessage != null && !_isLoading) ...[
                   AppCard(
                     backgroundColor: theme.brightness == Brightness.dark
                         ? AppColors.errorContainerDark
@@ -215,7 +243,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         const SizedBox(width: AppDimensions.spacingSm),
                         Expanded(
                           child: Text(
-                            expenseState.error.toString(),
+                            _errorMessage!,
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.brightness == Brightness.dark
                                   ? AppColors.onErrorContainerDark
@@ -244,7 +272,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     decimal: true,
                   ),
                   textInputAction: TextInputAction.next,
-                  enabled: !isLoading,
+                  enabled: !_isLoading,
                   validator: _validateAmount,
                   style: theme.textTheme.headlineMedium?.copyWith(
                     color: theme.colorScheme.primary,
@@ -273,7 +301,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   controller: _titleController,
                   textCapitalization: TextCapitalization.sentences,
                   textInputAction: TextInputAction.next,
-                  enabled: !isLoading,
+                  enabled: !_isLoading,
                   validator: _validateTitle,
                   decoration: const InputDecoration(
                     hintText: 'e.g. Grocery shopping',
@@ -312,7 +340,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 ),
                 const SizedBox(height: AppDimensions.spacingXs),
                 InkWell(
-                  onTap: isLoading ? null : _selectDate,
+                  onTap: _isLoading ? null : _selectDate,
                   borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
                   child: AppCard(
                     padding: const EdgeInsets.symmetric(
@@ -358,7 +386,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   controller: _noteController,
                   maxLines: 3,
                   textCapitalization: TextCapitalization.sentences,
-                  enabled: !isLoading,
+                  enabled: !_isLoading,
                   decoration: const InputDecoration(
                     hintText: 'Add additional details or notes...',
                   ),
@@ -368,8 +396,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 // Save / Update Button
                 PrimaryButton(
                   label: _isEditing ? 'Update Expense' : 'Save Expense',
-                  isLoading: isLoading,
-                  onPressed: isLoading ? null : _handleSubmit,
+                  isLoading: _isLoading,
+                  onPressed: _isLoading ? null : _handleSubmit,
                 ),
                 const SizedBox(height: AppDimensions.spacingLg),
               ],

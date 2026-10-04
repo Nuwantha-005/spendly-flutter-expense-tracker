@@ -1,6 +1,6 @@
 # Spendly
 
-A modern Flutter expense tracker application that allows users to securely manage, analyse, and track their personal expenses using Firebase. Built with a clean feature-first architecture, Riverpod state management, and a polished Material 3 UI with full Light and Dark mode support.
+A modern Flutter expense tracker application that allows users to securely manage, analyse, and track their personal expenses using Firebase. Built with a clean feature-first architecture, beginner/intermediate-friendly Flutter state management (StatefulWidget, setState, StreamBuilder, ValueNotifier), and a polished Material 3 UI with full Light and Dark mode support.
 
 ---
 
@@ -63,7 +63,6 @@ A modern Flutter expense tracker application that allows users to securely manag
 | [firebase_core](https://pub.dev/packages/firebase_core) | ^3.12.1 | Firebase initialisation |
 | [firebase_auth](https://pub.dev/packages/firebase_auth) | ^5.5.1 | User authentication |
 | [cloud_firestore](https://pub.dev/packages/cloud_firestore) | ^5.6.5 | Real-time expense storage |
-| [flutter_riverpod](https://pub.dev/packages/flutter_riverpod) | ^2.6.1 | State management |
 | [fl_chart](https://pub.dev/packages/fl_chart) | ^1.1.1 | Expense analytics charts |
 | [shared_preferences](https://pub.dev/packages/shared_preferences) | ^2.5.5 | Theme preference persistence |
 | [intl](https://pub.dev/packages/intl) | ^0.20.2 | Date and number formatting |
@@ -72,13 +71,13 @@ A modern Flutter expense tracker application that allows users to securely manag
 
 ## Architecture
 
-Spendly uses a **feature-first Clean Architecture** approach. Each feature is self-contained with its own `data`, `domain`, and `presentation` layers.
+Spendly uses a simple, **interview-friendly architecture** based entirely on standard Flutter mechanisms (StatefulWidget, setState, StreamBuilder, FutureBuilder, ValueNotifier) without third-party state management overhead.
 
 ```
 lib/
 ├── app/
 │   ├── app.dart                    # Root MaterialApp and theme setup
-│   └── routes.dart                 # Navigation and AuthGate
+│   └── routes.dart                 # Centralized navigation routes
 │
 ├── core/
 │   ├── constants/
@@ -88,7 +87,7 @@ lib/
 │   │   ├── app_colors.dart         # Colour palette (light + dark)
 │   │   ├── app_text_styles.dart    # Typography definitions
 │   │   ├── app_theme.dart          # ThemeData (light and dark)
-│   │   └── theme_provider.dart     # Riverpod theme toggle + SharedPreferences
+│   │   └── theme_provider.dart     # ValueNotifier theme toggle + SharedPreferences
 │   ├── utils/
 │   │   ├── currency_formatter.dart # LKR currency formatting
 │   │   └── date_formatter.dart     # Human-readable date helpers
@@ -106,8 +105,6 @@ lib/
 │   │   │   ├── auth_service.dart
 │   │   │   └── auth_exception_handler.dart
 │   │   └── presentation/
-│   │       ├── providers/
-│   │       │   └── auth_providers.dart
 │   │       ├── auth_gate.dart
 │   │       ├── login_screen.dart
 │   │       ├── register_screen.dart
@@ -125,8 +122,6 @@ lib/
 │   │   │   ├── monthly_expense_summary.dart
 │   │   │   └── monthly_trend_item.dart
 │   │   └── presentation/
-│   │       ├── providers/
-│   │       │   └── expense_providers.dart
 │   │       ├── widgets/
 │   │       │   ├── expense_list_tile.dart
 │   │       │   └── category_selector.dart
@@ -146,6 +141,8 @@ lib/
 │   │       └── settings_screen.dart
 │   │
 │   └── navigation/
+│       └── presentation/
+│           └── main_navigation_shell.dart
 │
 ├── firebase_options.dart
 └── main.dart
@@ -155,18 +152,17 @@ lib/
 
 ```
 UI (Screens / Widgets)
-        ↓  watches / reads
-Riverpod Providers
-        ↓  calls
+        ↓  uses setState() / StreamBuilder / ValueListenableBuilder
 Service Layer  (ExpenseService, AuthService)
         ↓  reads / writes
 Firebase  (Cloud Firestore, Firebase Authentication)
 ```
 
-- **Screens** are `ConsumerWidget` / `ConsumerStatefulWidget` that `watch` Riverpod providers.
-- **Providers** expose `StreamProvider` (real-time Firestore streams), `StateNotifierProvider` (controllers), and derived `Provider` (computed values such as filtered lists and analytics).
-- **Services** wrap the Firebase SDK — no business logic in services.
-- **Domain models** are plain Dart classes with `fromFirestore` / `toFirestore` conversion methods.
+- **StatefulWidget & setState()**: Used for local screen state (e.g. form inputs, active filter settings, loading indicators, navigation tab index).
+- **StreamBuilder**: Directly subscribes to real-time streams (e.g. `AuthService.authStateChanges`, `ExpenseService.watchExpenses()`), keeping the UI reactive to Firestore changes without extra abstraction layers.
+- **ValueNotifier / ValueListenableBuilder**: Simple, reactive theme mode management persisted via SharedPreferences.
+- **Service Layer**: Pure Dart classes wrapping the Firebase SDK (`FirebaseAuth` and `FirebaseFirestore`) with CRUD methods and custom exception handling.
+- **Domain Models**: Plain Dart classes with `fromFirestore` / `toFirestore` serialization methods.
 
 ---
 

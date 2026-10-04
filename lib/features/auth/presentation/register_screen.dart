@@ -1,30 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/spendly_app_bar.dart';
-import 'providers/auth_providers.dart';
+import '../data/auth_exception_handler.dart';
+import '../data/auth_service.dart';
 
 /// Screen allowing new users to register for Spendly.
 /// Fully theme-adaptive for dark and light modes.
-class RegisterScreen extends ConsumerStatefulWidget {
+class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _authService = AuthService();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -77,7 +80,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
-    ref.read(authControllerProvider.notifier).clearError();
+    setState(() {
+      _errorMessage = null;
+    });
 
     if (!_formKey.currentState!.validate()) {
       return;
@@ -85,28 +90,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     FocusScope.of(context).unfocus();
 
-    final success = await ref.read(authControllerProvider.notifier).register(
-          name: _nameController.text,
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
+    setState(() {
+      _isLoading = true;
+    });
 
-    if (success && mounted) {
-      // If we pushed RegisterScreen on top of LoginScreen, pop back
-      // so AuthGate can display MainNavigationShell
-      Navigator.of(context).popUntil((route) => route.isFirst);
-    }
-  }
+    try {
+      await _authService.registerWithEmailAndPassword(
+        name: _nameController.text,
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final authState = ref.watch(authControllerProvider);
-    final isLoading = authState.isLoading;
-
-    ref.listen<AsyncValue<void>>(authControllerProvider, (_, next) {
-      if (next.hasError && !next.isLoading) {
-        final errorMsg = next.error.toString();
+      if (mounted) {
+        // Pop back so AuthGate can display MainNavigationShell
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      final friendlyMessage = AuthExceptionHandler.getErrorMessage(e);
+      if (mounted) {
+        setState(() {
+          _errorMessage = friendlyMessage;
+        });
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -120,7 +124,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(width: AppDimensions.spacingSm),
                 Expanded(
                   child: Text(
-                    errorMsg,
+                    friendlyMessage,
                     style: const TextStyle(color: AppColors.onError),
                   ),
                 ),
@@ -134,7 +138,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ),
         );
       }
-    });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: const SpendlyAppBar(
@@ -165,7 +180,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   const SizedBox(height: AppDimensions.spacingLg),
 
                   // Error Banner (if any)
-                  if (authState.hasError && !isLoading) ...[
+                  if (_errorMessage != null && !_isLoading) ...[
                     AppCard(
                       backgroundColor: theme.brightness == Brightness.dark
                           ? AppColors.errorContainerDark
@@ -182,7 +197,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           const SizedBox(width: AppDimensions.spacingSm),
                           Expanded(
                             child: Text(
-                              authState.error.toString(),
+                              _errorMessage!,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.brightness == Brightness.dark
                                     ? AppColors.onErrorContainerDark
@@ -210,7 +225,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     keyboardType: TextInputType.name,
                     textCapitalization: TextCapitalization.words,
                     textInputAction: TextInputAction.next,
-                    enabled: !isLoading,
+                    enabled: !_isLoading,
                     validator: _validateName,
                     decoration: const InputDecoration(
                       hintText: 'John Doe',
@@ -236,7 +251,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     textInputAction: TextInputAction.next,
                     autocorrect: false,
                     enableSuggestions: false,
-                    enabled: !isLoading,
+                    enabled: !_isLoading,
                     validator: _validateEmail,
                     decoration: const InputDecoration(
                       hintText: 'you@example.com',
@@ -260,7 +275,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.next,
-                    enabled: !isLoading,
+                    enabled: !_isLoading,
                     validator: _validatePassword,
                     decoration: InputDecoration(
                       hintText: 'At least 6 characters',
@@ -298,7 +313,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirmPassword,
                     textInputAction: TextInputAction.done,
-                    enabled: !isLoading,
+                    enabled: !_isLoading,
                     validator: _validateConfirmPassword,
                     onFieldSubmitted: (_) => _handleRegister(),
                     decoration: InputDecoration(
@@ -328,8 +343,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   // Register CTA Button
                   PrimaryButton(
                     label: 'Create Account',
-                    isLoading: isLoading,
-                    onPressed: isLoading ? null : _handleRegister,
+                    isLoading: !_isLoading ? false : true,
+                    onPressed: _isLoading ? null : _handleRegister,
                   ),
                   const SizedBox(height: AppDimensions.spacingMd),
 
@@ -342,12 +357,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         style: theme.textTheme.bodyMedium,
                       ),
                       TextButton(
-                        onPressed: isLoading
+                        onPressed: _isLoading
                             ? null
                             : () {
-                                ref
-                                    .read(authControllerProvider.notifier)
-                                    .clearError();
                                 Navigator.of(context).pop();
                               },
                         child: const Text('Log In'),

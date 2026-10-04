@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/routes.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -7,34 +6,39 @@ import '../../dashboard/presentation/dashboard_screen.dart';
 import '../../expenses/presentation/expenses_screen.dart';
 import '../../settings/presentation/settings_screen.dart';
 
-/// State provider for tracking active bottom navigation tab.
-final navigationIndexProvider = StateProvider.autoDispose<int>((ref) => 0);
-
 /// Main shell managing bottom navigation for the 4 core sections:
 /// 1. Dashboard
 /// 2. Expenses
 /// 3. Add Expense (Prominent central action)
 /// 4. Settings
-class MainNavigationShell extends ConsumerWidget {
+class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final activeIndex = ref.watch(navigationIndexProvider);
+  State<MainNavigationShell> createState() => _MainNavigationShellState();
+}
+
+class _MainNavigationShellState extends State<MainNavigationShell> {
+  int _activeIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     final pages = <Widget>[
       DashboardScreen(
         onNavigateToExpenses: () {
-          ref.read(navigationIndexProvider.notifier).state = 1;
+          setState(() {
+            _activeIndex = 1;
+          });
         },
       ),
       const ExpensesScreen(),
       const SettingsScreen(),
     ];
 
-    // Map nav bar index (0: Dashboard, 1: Expenses, 3: Settings) to page index (0, 1, 2)
-    final pageIndex = activeIndex >= 2 ? 2 : activeIndex;
+    // Map nav bar index (0: Dashboard, 1: Expenses, 2: Settings) to page index (0, 1, 2)
+    final pageIndex = _activeIndex >= 2 ? 2 : _activeIndex;
 
     return Scaffold(
       body: IndexedStack(
@@ -66,18 +70,24 @@ class MainNavigationShell extends ConsumerWidget {
                   icon: Icons.dashboard_outlined,
                   activeIcon: Icons.dashboard_rounded,
                   label: 'Dashboard',
-                  isSelected: activeIndex == 0,
-                  onTap: () =>
-                      ref.read(navigationIndexProvider.notifier).state = 0,
+                  isSelected: _activeIndex == 0,
+                  onTap: () {
+                    setState(() {
+                      _activeIndex = 0;
+                    });
+                  },
                 ),
                 _buildNavItem(
                   context: context,
                   icon: Icons.receipt_long_outlined,
                   activeIcon: Icons.receipt_long_rounded,
                   label: 'Expenses',
-                  isSelected: activeIndex == 1,
-                  onTap: () =>
-                      ref.read(navigationIndexProvider.notifier).state = 1,
+                  isSelected: _activeIndex == 1,
+                  onTap: () {
+                    setState(() {
+                      _activeIndex = 1;
+                    });
+                  },
                 ),
                 _buildProminentAddAction(
                   context: context,
@@ -90,9 +100,12 @@ class MainNavigationShell extends ConsumerWidget {
                   icon: Icons.settings_outlined,
                   activeIcon: Icons.settings_rounded,
                   label: 'Settings',
-                  isSelected: activeIndex == 2,
-                  onTap: () =>
-                      ref.read(navigationIndexProvider.notifier).state = 2,
+                  isSelected: _activeIndex == 2,
+                  onTap: () {
+                    setState(() {
+                      _activeIndex = 2;
+                    });
+                  },
                 ),
               ],
             ),
